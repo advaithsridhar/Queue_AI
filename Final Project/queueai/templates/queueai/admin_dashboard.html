@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QueueAI — Admin Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #2563eb;
+      --border: #334155;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; }
+
+    /* ── DASHBOARD ── */
+    .top-nav {
+      background: var(--bg-card); border-bottom: 1px solid var(--border);
+      height: 62px; display: flex; align-items: center; padding: 0 28px; gap: 20px;
+    }
+    .top-nav .nav-brand { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .top-nav .nav-brand .brand-icon {
+      width: 36px; height: 36px; background: var(--blue); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: white;
+    }
+    .top-nav .nav-brand .brand-name { font-size: 17px; font-weight: 700; }
+    .admin-badge {
+      background: #dc2626; color: white; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: .06em;
+    }
+    .nav-actions { display: flex; align-items: center; gap: 20px; }
+    .pmode-row { display: flex; align-items: center; gap: 10px; }
+    .pmode-label { font-size: 14px; color: var(--muted); }
+    .toggle {
+      width: 46px; height: 26px; border-radius: 13px; background: #334155;
+      position: relative; cursor: pointer; transition: background .2s;
+    }
+    .toggle.on { background: var(--blue); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px; border-radius: 50%; background: white;
+      transition: transform .2s;
+    }
+    .toggle.on::after { transform: translateX(20px); }
+    .pmode-state { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .pmode-state.on { color: #60a5fa; }
+    .ws-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    .ws-dot.off { background: var(--red); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+    .btn-logout {
+      padding: 7px 16px; background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 13px; cursor: pointer; text-decoration: none;
+    }
+    .btn-logout:hover { background: var(--border); color: var(--text); }
+
+    /* main layout */
+    .main { max-width: 980px; margin: 0 auto; padding: 36px 24px; }
+
+    .section { margin-bottom: 36px; }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .1em;
+      color: #475569; text-transform: uppercase; margin-bottom: 16px;
+    }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+
+    /* Live status pills */
+    .status-row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .stat-pill {
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px 22px; min-width: 155px; flex: 1;
+    }
+    .pill-label { font-size: 12px; color: #64748b; margin-bottom: 8px; font-weight: 500; }
+    .pill-val { font-size: 26px; font-weight: 700; line-height: 1; }
+    .pill-val.crowd { color: #60a5fa; }
+    .pill-val.wait  { color: #fbbf24; }
+    .pill-val.level-LOW    { color: #4ade80; }
+    .pill-val.level-MEDIUM { color: #fbbf24; }
+    .pill-val.level-HIGH   { color: #f87171; }
+    .pill-val.time  { color: var(--muted); font-size: 16px; }
+
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .form-field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .form-field input, .form-field select {
+      width: 100%; padding: 11px 14px;
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 14px; outline: none;
+      transition: border-color .15s;
+    }
+    .form-field input:focus, .form-field select:focus { border-color: var(--blue); }
+    .form-field select option { background: var(--bg-card); }
+    .btn-push {
+      width: 100%; padding: 14px; background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 22px; transition: background .15s; letter-spacing: .02em;
+    }
+    .btn-push:hover { background: #1d4ed8; }
+    .btn-push:active { transform: scale(.99); }
+    .success-toast {
+      margin-top: 14px; padding: 11px 16px;
+      background: #022c22; border: 1px solid #064e3b;
+      border-radius: var(--radius-sm); color: #6ee7b7;
+      font-size: 14px; display: none; align-items: center; gap: 8px;
+    }
+    .success-toast.show { display: flex; }
+
+    /* Network info box */
+    .net-info {
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px 20px;
+      font-size: 13px; color: var(--muted); line-height: 1.8;
+    }
+    .net-info code {
+      background: #0f172a; border: 1px solid #1e3a5f; border-radius: 4px;
+      padding: 2px 8px; font-family: 'Courier New', monospace; color: #7dd3fc;
+      font-size: 12px;
+    }
+    .net-info strong { color: var(--text); }
+
+    /* Log */
+    .log-box {
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 16px;
+      max-height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;
+    }
+    .log-line { padding: 2px 0; display: flex; gap: 10px; }
+    .log-ts { color: #475569; min-width: 80px; }
+    .log-text { color: #6ee7b7; }
+    .log-text.warn { color: #fbbf24; }
+    .log-text.info { color: #93c5fd; }
+
+    /* API docs */
+    .api-endpoint {
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 10px;
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .http-method {
+      font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px;
+      min-width: 50px; text-align: center; margin-top: 2px;
+    }
+    .http-method.POST { background: #1e3a5f; color: #60a5fa; }
+    .http-method.GET  { background: #064e3b; color: #6ee7b7; }
+    .api-path { font-family: 'Courier New', monospace; font-size: 13px; color: #e2e8f0; margin-bottom: 4px; }
+    .api-desc { font-size: 13px; color: var(--muted); }
+
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .status-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="dashboard" id="dashboard" style="display: block;">
+
+  <nav class="top-nav">
+    <div class="nav-brand">
+      <div class="brand-icon">Q</div>
+      <span class="brand-name">QueueAI</span>
+      <span class="admin-badge">ADMIN</span>
+    </div>
+    <div class="nav-actions">
+      <div class="ws-indicator">
+        <div class="ws-dot" id="wsDot"></div>
+        <span id="wsLabel">Live</span>
+      </div>
+      <div class="pmode-row">
+        <span class="pmode-label">Presentation Mode</span>
+        <div class="toggle {% if config.is_enabled %}on{% endif %}" id="pmToggle" onclick="togglePM()"></div>
+        <span class="pmode-state {% if config.is_enabled %}on{% endif %}" id="pmState">{% if config.is_enabled %}ON{% else %}OFF{% endif %}</span>
+      </div>
+      <a href="{% url 'queueai:index' %}" class="btn-logout" style="margin-right: 8px;">Main Dashboard</a>
+      <a href="{% url 'queueai:admin_logout' %}" class="btn-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div class="main">
+
+    <!-- Live Status -->
+    <div class="section">
+      <div class="section-label">Live Status</div>
+      <div class="status-row">
+        <div class="stat-pill">
+          <div class="pill-label">Crowd Count</div>
+          <div class="pill-val crowd" id="lvCrowd">–</div>
+        </div>
+        <div class="stat-pill">
+          <div class="pill-label">Wait Time</div>
+          <div class="pill-val wait" id="lvWait">–</div>
+        </div>
+        <div class="stat-pill">
+          <div class="pill-label">Crowd Level</div>
+          <div class="pill-val" id="lvLevel">–</div>
+        </div>
+        <div class="stat-pill">
+          <div class="pill-label">Last Updated</div>
+          <div class="pill-val time" id="lvTime">–</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual Update Form -->
+    <div class="section">
+      <div class="section-label">Manual Update — Push to Dashboard</div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>City</label>
+            <input type="text" id="fCity" value="Bangalore" />
+          </div>
+          <div class="form-field">
+            <label>Place</label>
+            <input type="text" id="fPlace" value="Cauvery Hospital, Halasuru" />
+          </div>
+          <div class="form-field">
+            <label>Queue / Block</label>
+            <input type="text" id="fBlock" value="OP Desk" />
+          </div>
+          <div class="form-field">
+            <label>Crowd Count</label>
+            <input type="number" id="fCrowd" placeholder="e.g. 8" min="0" />
+          </div>
+          <div class="form-field">
+            <label>Wait Time (minutes)</label>
+            <input type="number" id="fWait" placeholder="e.g. 5" min="0" step="0.5" />
+          </div>
+          <div class="form-field">
+            <label>Crowd Level</label>
+            <select id="fLevel">
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-push" onclick="pushUpdate()">Update Live Dashboard</button>
+        <div class="success-toast" id="toast">
+          <span>✓</span> Dashboard updated successfully at <span id="toastTime"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Reference -->
+    <div class="section">
+      <div class="section-label">API Endpoints</div>
+      <div class="card">
+        <div class="api-endpoint">
+          <span class="http-method POST">POST</span>
+          <div>
+            <div class="api-path">/api/manual-update</div>
+            <div class="api-desc">Push crowd data update. Body: <code>{ city, place, block, crowd_count, wait_time, crowd_level }</code></div>
+          </div>
+        </div>
+        <div class="api-endpoint">
+          <span class="http-method GET">GET</span>
+          <div>
+            <div class="api-path">/api/live-queue?location=&block=</div>
+            <div class="api-desc">Get current queue data for a location and block.</div>
+          </div>
+        </div>
+        <div class="api-endpoint">
+          <span class="http-method GET">GET</span>
+          <div>
+            <div class="api-path">/api/presentation-mode</div>
+            <div class="api-desc">Get current presentation mode status. POST action=enable|disable to modify.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network Access -->
+    <div class="section">
+      <div class="section-label">Network Access — Second Laptop Setup</div>
+      <div class="card">
+        <div class="net-info">
+          <strong>Step 1 — Find your host IP:</strong><br />
+          Windows: Run <code>ipconfig</code> → look for IPv4 Address under your WiFi adapter<br />
+          Mac/Linux: Run <code>ifconfig | grep inet</code> or <code>ip addr</code><br /><br />
+          <strong>Step 2 — Start the server on all interfaces:</strong><br />
+          <code>python manage.py runserver 0.0.0.0:8000</code><br /><br />
+          <strong>Step 3 — Access from second laptop on same WiFi:</strong><br />
+          Dashboard: <code>http://192.168.x.x:8000/</code><br />
+          Admin panel: <code>http://192.168.x.x:8000/admin</code><br /><br />
+          <strong>Note:</strong> Both laptops must be on the same WiFi network. Replace <code>192.168.x.x</code> with your actual IP from Step 1.
+        </div>
+      </div>
+    </div>
+
+    <!-- Update Log -->
+    <div class="section">
+      <div class="section-label">Update Log</div>
+      <div class="card" style="padding:16px;">
+        <div class="log-box" id="logBox">
+          {% for update in updates %}
+            <div class="log-line">
+              <span class="log-ts">{{ update.submitted_at|date:"H:i:s" }}</span>
+              <span class="log-text">Pushed → Place: {{ update.place }} | Block: {{ update.block }} | Crowd: {{ update.crowd_count }} | Wait: {{ update.wait_time }}min</span>
+            </div>
+          {% empty %}
+            <div class="log-line"><span class="log-ts">--:--:--</span><span class="log-text info">Admin panel initialized. Awaiting updates.</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── State ──
+let presentationMode = {% if config.is_enabled %}true{% else %}false{% endif %};
+let liveData = { crowd: 0, wait: 0.0, level: 'LOW' };
+let ws = null;
+
+// ── Presentation Mode Toggle ──
+function togglePM() {
+  const action = presentationMode ? 'disable' : 'enable';
+  fetch("{% url 'queueai:api_presentation_mode' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": "{{ csrf_token }}"
+    },
+    body: JSON.stringify({ action: action })
+  })
+  .then(r => r.json())
+  .then(data => {
+    presentationMode = data.presentation_mode;
+    updatePMDisplay();
+    log(`Presentation Mode ${presentationMode ? 'ENABLED — sensor pipeline bypassed' : 'DISABLED — resuming sensor data'}`,
+        presentationMode ? 'warn' : 'info');
+  })
+  .catch(err => console.error(err));
+}
+
+function updatePMDisplay() {
+  const toggle = document.getElementById('pmToggle');
+  const state  = document.getElementById('pmState');
+  toggle.classList.toggle('on', presentationMode);
+  state.textContent = presentationMode ? 'ON' : 'OFF';
+  state.classList.toggle('on', presentationMode);
+}
+
+// ── Manual Update ──
+function pushUpdate() {
+  const crowd = parseInt(document.getElementById('fCrowd').value);
+  const wait  = parseFloat(document.getElementById('fWait').value);
+  const level = document.getElementById('fLevel').value;
+  const city  = document.getElementById('fCity').value;
+  const place = document.getElementById('fPlace').value;
+  const block = document.getElementById('fBlock').value;
+
+  if (isNaN(crowd) || isNaN(wait)) {
+    log('Error: Crowd Count and Wait Time are required', 'warn');
+    return;
+  }
+
+  const payload = { city, place, block, crowd_count: crowd, wait_time: wait, crowd_level: level };
+
+  fetch("{% url 'queueai:api_manual_update' %}", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      applyUpdate(payload, data.timestamp);
+    } else {
+      log('Error pushing update: ' + (data.error || 'unknown error'), 'warn');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    log('Error connecting to manual update API', 'warn');
+  });
+}
+
+function applyUpdate(data, timestamp) {
+  liveData = { crowd: data.crowd_count, wait: data.wait_time, level: data.crowd_level };
+  updateLiveDisplay();
+
+  const formattedTime = new Date(timestamp).toLocaleTimeString('en-IN', { hour12: true });
+  document.getElementById('lvTime').textContent = formattedTime;
+
+  // Show toast
+  const toast = document.getElementById('toast');
+  document.getElementById('toastTime').textContent = formattedTime;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 4000);
+
+  log(`Pushed → Place: ${data.place} | Block: ${data.block} | Crowd: ${data.crowd_count} | Wait: ${data.wait_time}min | Level: ${data.crowd_level}`);
+}
+
+function updateLiveDisplay() {
+  document.getElementById('lvCrowd').textContent = liveData.crowd;
+  document.getElementById('lvWait').textContent = `${liveData.wait} min`;
+  const lvEl = document.getElementById('lvLevel');
+  lvEl.textContent = liveData.level;
+  lvEl.className = `pill-val level-${liveData.level}`;
+}
+
+// ── WebSocket live sync ──
+function connectWS() {
+  if (ws) ws.close();
+  
+  const place = document.getElementById('fPlace').value;
+  const block = document.getElementById('fBlock').value;
+  
+  const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = `${wsScheme}://${window.location.host}/ws/queue/${encodeURIComponent(place)}/${encodeURIComponent(block)}/`;
+  
+  ws = new WebSocket(wsUrl);
+  
+  ws.onopen = () => {
+    document.getElementById('wsDot').classList.remove('off');
+    document.getElementById('wsLabel').textContent = 'Live';
+  };
+  
+  ws.onclose = () => {
+    document.getElementById('wsDot').classList.add('off');
+    document.getElementById('wsLabel').textContent = 'Offline';
+    setTimeout(connectWS, 3000);
+  };
+  
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'initial' || data.type === 'update') {
+      liveData = { crowd: data.crowd_count, wait: data.wait_time, level: data.crowd_level };
+      updateLiveDisplay();
+      if (data.timestamp) {
+        document.getElementById('lvTime').textContent = new Date(data.timestamp).toLocaleTimeString('en-IN', { hour12: true });
+      }
+    }
+  };
+}
+
+// ── Log ──
+function log(msg, type = '') {
+  const box = document.getElementById('logBox');
+  const ts = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${ts}</span><span class="log-text ${type}">${msg}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  connectWS();
+  
+  document.getElementById('fPlace').addEventListener('blur', connectWS);
+  document.getElementById('fBlock').addEventListener('blur', connectWS);
+});
+</script>
+</body>
+</html>

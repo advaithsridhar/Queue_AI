@@ -1,0 +1,404 @@
+{% extends 'queueai/base.html' %}
+
+{% block title %}Queue Detail - {{ block_name }} | QueueAI{% endblock %}
+
+{% block body %}
+<!-- NAVBAR -->
+<nav class="navbar" id="mainNavbar">
+  <button class="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <a href="{% url 'queueai:index' %}" class="navbar-brand">
+    <div class="brand-icon">Q</div>
+    <span class="brand-name">QueueAI</span>
+  </a>
+  <div class="nav-links">
+    <a href="{% url 'queueai:index' %}" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Home
+    </a>
+    <a href="#" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4m0-4h.01"/></svg>
+      About
+    </a>
+    <a href="{% url 'queueai:admin_dashboard' %}" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      Admin Panel
+    </a>
+  </div>
+  <div class="navbar-right">
+    <button class="city-btn">
+      <span class="city-label">Live Sync</span>
+      <span class="city-val" style="color: var(--green); display: flex; align-items: center; gap: 4px;">
+        <span class="ws-dot" id="wsDot"></span> Connected
+      </span>
+    </button>
+    <div class="avatar-container">
+      {% if request.user.is_authenticated or request.session.admin_logged_in %}
+      <div class="avatar" onclick="toggleUserDropdown(event)">A</div>
+      <div class="user-dropdown" id="userDropdownMenu">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar">A</div>
+          <div class="dropdown-info">
+            <div class="dropdown-name">Admin User</div>
+            <div class="dropdown-role">Administrator</div>
+          </div>
+        </div>
+        <div class="dropdown-body">
+          <div class="dropdown-detail"><strong>Email:</strong> <span>admin@queueai.com</span></div>
+          <div class="dropdown-detail"><strong>Role:</strong> <span>Admin</span></div>
+        </div>
+        <div class="dropdown-footer">
+          <button class="btn-view-details" onclick="openUserDetailsModal()">View User Details</button>
+        </div>
+      </div>
+      {% else %}
+      <div class="avatar" onclick="toggleUserDropdown(event)">M</div>
+      <div class="user-dropdown" id="userDropdownMenu">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar">M</div>
+          <div class="dropdown-info">
+            <div class="dropdown-name">Manoj Kumar</div>
+            <div class="dropdown-role">Visitor</div>
+          </div>
+        </div>
+        <div class="dropdown-body">
+          <div class="dropdown-detail"><strong>Email:</strong> <span>manoj.kumar@gmail.com</span></div>
+          <div class="dropdown-detail"><strong>Role:</strong> <span>Visitor</span></div>
+        </div>
+        <div class="dropdown-footer">
+          <button class="btn-view-details" onclick="openUserDetailsModal()">View User Details</button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="page active" id="page-queue">
+  <div class="queue-container">
+    <div class="queue-header-card">
+      <div class="eyebrow">Queue Detail</div>
+      <h1 id="queueTitle">{{ location }} — {{ block_name }}</h1>
+      <p id="queueSubtitle">{{ location }} Physical Queue Monitoring</p>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Crowd</div>
+        <div class="stat-icon c">C</div>
+        <div class="stat-value" id="statCrowd">{{ live_data.crowd_count }}</div>
+        <div class="stat-sub" id="statCrowdSub">{{ location }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Wait time</div>
+        <div class="stat-icon w">W</div>
+        <div class="stat-value" id="statWait">{{ live_data.wait_time }} min</div>
+        <div class="stat-sub" id="statWaitSub">{{ block_name }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Crowd level</div>
+        <div class="stat-icon l">L</div>
+        <div class="stat-value crowd-level-low" id="statLevel">{{ live_data.crowd_level }}</div>
+        <div class="stat-sub">Live level</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="eyebrow">History</div>
+      <h2>Queue trend</h2>
+      <div class="chart-wrap">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="calib-card">
+      <div class="calib-header">
+        <svg width="20" height="20" fill="none" stroke="var(--blue)" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        <h2>Sensor Calibration</h2>
+      </div>
+      <p class="calib-desc">Passive WiFi sniffing estimates crowd size based on detected wireless probe requests. MAC address randomization causes variance. To calibrate, enter the exact number of people currently standing in the queue and click Calibrate (Requires Admin login).</p>
+      <div class="calib-grid">
+        <div class="calib-fields">
+          <label>Actual headcount in queue</label>
+          <input type="number" placeholder="e.g. 8" id="calibCount" />
+          <button class="btn-calibrate" onclick="applyCalibration()">Calibrate</button>
+        </div>
+        <div class="calib-info-table">
+          <div class="calib-info-row">
+            <span class="key">Active Zone ID</span>
+            <span class="val">entrance-1</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Calibration Factor</span>
+            <span class="val" id="calibFactor">1.0</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Last Calibrated</span>
+            <span class="val" id="calibTime">Never</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Raw Device Count</span>
+            <span class="val" id="calibRaw">{{ live_data.crowd_count }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const locationName = "{{ location|escapejs }}";
+const blockName = "{{ block_name|escapejs }}";
+let trendChart = null;
+
+function applyLiveData(data) {
+  document.getElementById('statCrowd').textContent = data.crowd_count;
+  document.getElementById('calibRaw').textContent = data.crowd_count;
+  
+  const waitVal = parseFloat(data.wait_time);
+  document.getElementById('statWait').textContent = waitVal < 1 ? '< 1 min' : `${waitVal} min`;
+  
+  const levelEl = document.getElementById('statLevel');
+  levelEl.textContent = data.crowd_level;
+  levelEl.className = 'stat-value';
+  if (data.crowd_level === 'LOW') {
+    levelEl.classList.add('crowd-level-low');
+  } else if (data.crowd_level === 'MEDIUM') {
+    levelEl.classList.add('crowd-level-medium');
+  } else {
+    levelEl.classList.add('crowd-level-high');
+  }
+
+  // Update presentation mode banner
+  const banner = document.getElementById('pmodeBanner');
+  if (banner) {
+    if (data.presentation_mode) {
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+}
+
+function initChart(historyData) {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  
+  let chartPoints = [];
+  if (historyData && historyData.length > 0) {
+    chartPoints = historyData.map(h => ({
+      t: h.ts_ms || new Date(h.timestamp).getTime(),
+      c: h.crowd_count,
+      w: h.wait_time
+    }));
+  } else {
+    // Generate initial dummy timeline if no history is present
+    const now = Date.now();
+    for (let i = 25; i >= 0; i--) {
+      chartPoints.push({
+        t: now - i * 60 * 1000,
+        c: {{ live_data.crowd_count }},
+        w: {{ live_data.wait_time }}
+      });
+    }
+  }
+
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Crowd Count',
+          data: chartPoints.map(d => ({x: d.t, y: d.c})),
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Waiting Time',
+          data: chartPoints.map(d => ({x: d.t, y: d.w})),
+          borderColor: '#d97706',
+          backgroundColor: 'rgba(217,119,6,.08)',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'center',
+          labels: { usePointStyle: true, pointStyle: 'rect', font: { size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            title: ctx => {
+              const d = new Date(ctx[0].parsed.x);
+              return d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+            },
+            label: ctx => {
+              if (ctx.datasetIndex === 0) return `Crowd Count: ${ctx.parsed.y}`;
+              return `Waiting Time (min): ${ctx.parsed.y}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: {
+            maxTicksLimit: 10,
+            font: { size: 10 },
+            color: '#94a3b8',
+            callback: val => {
+              const d = new Date(val);
+              return d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
+            }
+          },
+          grid: { color: '#f1f5f9' }
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Devices (People)', font: { size: 11 }, color: '#64748b' },
+          ticks: { stepSize: 2, font: { size: 11 }, color: '#94a3b8' },
+          grid: { color: '#f1f5f9' },
+          min: 0, max: 20
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'Wait Time (Minutes)', font: { size: 11 }, color: '#64748b' },
+          ticks: { stepSize: 1.0, font: { size: 11 }, color: '#94a3b8' },
+          grid: { display: false },
+          min: 0, max: 10
+        }
+      }
+    }
+  });
+}
+
+function addChartPoint(crowd, wait) {
+  if (!trendChart) return;
+  const ts = Date.now();
+  trendChart.data.datasets[0].data.push({x: ts, y: crowd});
+  trendChart.data.datasets[1].data.push({x: ts, y: parseFloat(wait) || 0});
+  if (trendChart.data.datasets[0].data.length > 60) {
+    trendChart.data.datasets[0].data.shift();
+    trendChart.data.datasets[1].data.shift();
+  }
+  trendChart.update('active');
+}
+
+function loadHistoryAndInitChart() {
+  fetch(`/api/chart-history?location=${encodeURIComponent(locationName)}&block=${encodeURIComponent(blockName)}`)
+    .then(r => r.json())
+    .then(data => {
+      initChart(data.history);
+    })
+    .catch(err => {
+      console.warn("Could not fetch history, starting with default chart", err);
+      initChart([]);
+    });
+}
+
+function applyCalibration() {
+  const actual = parseInt(document.getElementById('calibCount').value);
+  if (!actual || actual < 1) return;
+  
+  fetch("{% url 'queueai:api_calibrate' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": "{{ csrf_token }}"
+    },
+    body: JSON.stringify({
+      location: locationName,
+      block: blockName,
+      actual_count: actual
+    })
+  })
+  .then(r => {
+    if (r.status === 419 || r.status === 403 || r.status === 401) {
+      alert("Unauthorized. Please log in as an Admin first.");
+      window.location.href = "{% url 'queueai:admin_login' %}";
+      throw new Error("Unauthorized");
+    }
+    return r.json();
+  })
+  .then(data => {
+    if (data.status === 'ok') {
+      document.getElementById('calibFactor').textContent = data.calibration_factor;
+      document.getElementById('calibTime').textContent = new Date().toLocaleTimeString('en-IN', {hour12:true});
+      document.getElementById('calibRaw').textContent = data.raw_count;
+      document.getElementById('calibCount').value = '';
+    } else {
+      alert("Calibration failed: " + (data.error || "unknown error"));
+    }
+  })
+  .catch(err => console.error(err));
+}
+
+// ── WebSocket live sync ──
+(function() {
+  const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl    = `${wsScheme}://${window.location.host}/ws/queue/${encodeURIComponent(locationName)}/${encodeURIComponent(blockName)}/`;
+
+  let ws, reconnectTimer;
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen  = () => {
+      document.getElementById('wsDot')?.classList.remove('disconnected');
+    };
+    ws.onclose = () => {
+      document.getElementById('wsDot')?.classList.add('disconnected');
+      reconnectTimer = setTimeout(connect, 2000);  // auto-reconnect
+    };
+    ws.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.type === 'initial' || d.type === 'update') {
+        applyLiveData(d);
+        if (d.type === 'update') {
+          addChartPoint(d.crowd_count, d.wait_time);
+        }
+      }
+    };
+  }
+
+  function startPolling() {
+    setInterval(() => {
+      fetch(`/api/live-queue?location=${encodeURIComponent(locationName)}&block=${encodeURIComponent(blockName)}`)
+        .then(r => r.json())
+        .then(d => {
+          applyLiveData(d);
+          addChartPoint(d.crowd_count, d.wait_time);
+        });
+    }, 2000);
+  }
+
+  try {
+    connect();
+  } catch(e) {
+    console.warn("WS error, running polling fallback", e);
+    startPolling();
+  }
+})();
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadHistoryAndInitChart();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QueueAI - Smart Queue Prediction</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #2563eb;
+      --blue-light: #eff6ff;
+      --blue-mid: #dbeafe;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --green: #16a34a;
+      --green-light: #dcfce7;
+      --orange: #ea580c;
+      --orange-light: #fff7ed;
+      --red: #dc2626;
+      --red-light: #fef2f2;
+      --yellow: #d97706;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    .brand-icon {
+      width: 32px; height: 32px;
+      background: var(--blue);
+      color: white;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px;
+    }
+    .brand-name { font-size: 18px; font-weight: 700; color: var(--blue); }
+    .hamburger {
+      width: 36px; height: 36px;
+      border: none; background: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    }
+    .hamburger span { width: 20px; height: 2px; background: var(--text-primary); border-radius: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-link {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      text-decoration: none; color: var(--text-secondary); font-size: 14px; font-weight: 500;
+      transition: background .15s, color .15s;
+    }
+    .nav-link:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-link svg { width: 16px; height: 16px; }
+    .navbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .city-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--white);
+      font-size: 14px; cursor: pointer; color: var(--text-primary); font-weight: 500;
+    }
+    .city-btn .city-label { color: var(--text-muted); font-weight: 400; }
+    .city-btn .city-val { color: var(--blue); font-weight: 600; }
+    .search-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--white);
+      font-size: 14px; color: var(--text-muted); cursor: pointer;
+    }
+    .search-bar svg { width: 16px; height: 16px; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--blue); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+
+    /* ── PAGES ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── HOME PAGE ── */
+    .home-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .city-overview-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 28px 32px;
+      margin-bottom: 24px; box-shadow: var(--shadow-sm);
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .city-overview-card .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      color: var(--blue); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .city-overview-card h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .city-overview-card p { font-size: 14px; color: var(--text-secondary); }
+    .places-count {
+      background: var(--blue-light); color: var(--blue);
+      font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+      white-space: nowrap; margin-top: 4px;
+    }
+
+    .home-body { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+
+    .places-section .section-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .places-section .section-header .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      color: var(--blue); text-transform: uppercase; margin-bottom: 4px;
+    }
+    .places-section .section-header h2 { font-size: 20px; font-weight: 700; }
+    .filter-select {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--white);
+      font-size: 13px; cursor: pointer; color: var(--text-primary);
+    }
+
+    .place-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 18px 20px;
+      margin-bottom: 12px; cursor: pointer; transition: border-color .15s, box-shadow .15s;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .place-card:hover { border-color: var(--blue); box-shadow: var(--shadow); }
+    .place-card.selected { border-color: var(--blue); border-width: 2px; }
+    .place-card-name { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+    .place-card-meta { font-size: 13px; color: var(--text-secondary); }
+    .place-card-meta span::after { content: ' · '; }
+    .place-card-meta span:last-child::after { content: ''; }
+    .status-badge {
+      font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 20px;
+    }
+    .status-badge.available { background: var(--green-light); color: var(--green); }
+    .status-badge.not-available { background: var(--red-light); color: var(--red); }
+
+    /* Context sidebar */
+    .context-sidebar { }
+    .context-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .context-card .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      color: var(--blue); text-transform: uppercase; margin-bottom: 12px;
+    }
+    .context-place-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .context-place-type { font-size: 13px; color: var(--blue); margin-bottom: 16px; }
+    .context-queues-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; }
+    .queue-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .queue-row:last-child { border-bottom: none; }
+    .queue-row-name { font-size: 14px; font-weight: 500; }
+    .queue-wait-badge {
+      font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 20px;
+      background: var(--green-light); color: var(--green);
+    }
+    .queue-offline { font-size: 13px; color: var(--text-muted); }
+
+    /* ── QUEUE DETAIL PAGE ── */
+    .queue-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .queue-header-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 28px 32px;
+      margin-bottom: 24px; box-shadow: var(--shadow-sm);
+    }
+    .queue-header-card .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      color: var(--blue); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .queue-header-card h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .queue-header-card p { font-size: 14px; color: var(--text-secondary); }
+
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 22px 24px;
+      box-shadow: var(--shadow-sm); position: relative;
+    }
+    .stat-label { font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; font-weight: 500; }
+    .stat-icon {
+      position: absolute; top: 22px; right: 22px;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+    .stat-icon.c { background: #dbeafe; color: var(--blue); }
+    .stat-icon.w { background: #fef3c7; color: #92400e; }
+    .stat-icon.l { background: var(--green-light); color: var(--green); }
+    .stat-value { font-size: 40px; font-weight: 700; line-height: 1; margin-bottom: 12px; }
+    .stat-sub { font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 12px; }
+    .crowd-level-low { color: var(--green); }
+    .crowd-level-medium { color: var(--yellow); }
+    .crowd-level-high { color: var(--red); }
+
+    /* Chart card */
+    .chart-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 24px 28px;
+      margin-bottom: 24px; box-shadow: var(--shadow-sm);
+    }
+    .chart-card .eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      color: var(--blue); text-transform: uppercase; margin-bottom: 6px;
+    }
+    .chart-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* Calibration card */
+    .calib-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 24px 28px;
+      box-shadow: var(--shadow-sm);
+    }
+    .calib-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .calib-header svg { color: var(--blue); }
+    .calib-header h2 { font-size: 18px; font-weight: 700; }
+    .calib-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; max-width: 560px; }
+    .calib-grid { display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
+    .calib-fields label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+    .calib-fields input {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 12px;
+      outline: none; transition: border-color .15s;
+    }
+    .calib-fields input:focus { border-color: var(--blue); }
+    .btn-calibrate {
+      padding: 9px 20px; background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+    }
+    .btn-calibrate:hover { background: #1d4ed8; }
+    .calib-info-table { font-size: 14px; }
+    .calib-info-row {
+      display: flex; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .calib-info-row:last-child { border-bottom: none; }
+    .calib-info-row .key { color: var(--text-secondary); }
+    .calib-info-row .val { font-weight: 600; }
+
+    /* ── CITY MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.3); z-index: 1000;
+      display: none; align-items: flex-start; justify-content: center;
+      padding-top: 80px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white); border-radius: var(--radius);
+      width: 760px; max-height: 580px; overflow: hidden;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    }
+    .modal-body { overflow-y: auto; padding: 24px; }
+    .modal-search {
+      position: relative; margin-bottom: 24px;
+    }
+    .modal-search input {
+      width: 100%; padding: 12px 16px 12px 44px;
+      border: 2px solid var(--blue); border-radius: var(--radius-sm);
+      font-size: 15px; outline: none;
+    }
+    .modal-search svg {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--text-muted); width: 18px; height: 18px;
+    }
+    .modal-close {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none; cursor: pointer;
+      font-size: 18px; color: var(--text-muted); line-height: 1;
+    }
+    .detect-location {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--red); font-size: 14px; font-weight: 500; margin-bottom: 24px; cursor: pointer;
+    }
+    .detect-location svg { width: 16px; height: 16px; }
+    .city-section-label {
+      font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      color: var(--text-muted); text-transform: uppercase;
+      margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .popular-cities {
+      display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 28px;
+    }
+    .city-chip {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 14px 8px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); cursor: pointer; transition: all .15s;
+      background: var(--white);
+    }
+    .city-chip:hover { border-color: var(--blue); background: var(--blue-light); }
+    .city-chip.selected { border-color: var(--blue); background: var(--blue-light); }
+    .city-chip-icon {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+    }
+    .city-chip.selected .city-chip-icon { background: var(--blue-mid); border-color: var(--blue); }
+    .city-chip-icon svg { width: 22px; height: 22px; color: var(--text-secondary); }
+    .city-chip.selected .city-chip-icon svg { color: var(--blue); }
+    .city-chip-name { font-size: 12px; font-weight: 500; text-align: center; color: var(--text-primary); }
+    .other-cities { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+    .other-city { font-size: 14px; color: var(--text-secondary); padding: 6px 4px; cursor: pointer; }
+    .other-city:hover { color: var(--blue); }
+
+    /* ── ADMIN PAGE ── */
+    .admin-overlay {
+      min-height: 100vh; background: #0f172a; color: white;
+      display: none;
+    }
+    .admin-overlay.open { display: block; }
+    .admin-nav {
+      background: #1e293b; padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+    .admin-nav-brand { display: flex; align-items: center; gap: 10px; }
+    .admin-nav-brand .brand-icon { background: var(--blue); }
+    .admin-nav-brand span { font-size: 16px; font-weight: 700; color: white; }
+    .admin-nav-brand .admin-tag {
+      background: #dc2626; color: white; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: .05em;
+    }
+    .admin-nav-right { display: flex; align-items: center; gap: 12px; }
+    .pmode-toggle {
+      display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cbd5e1;
+    }
+    .toggle-switch {
+      width: 44px; height: 24px; background: #334155; border-radius: 12px;
+      position: relative; cursor: pointer; transition: background .2s;
+    }
+    .toggle-switch.on { background: var(--blue); }
+    .toggle-switch::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; background: white; border-radius: 50%;
+      transition: transform .2s;
+    }
+    .toggle-switch.on::after { transform: translateX(20px); }
+    .btn-logout {
+      padding: 6px 14px; background: transparent; color: #94a3b8;
+      border: 1px solid #334155; border-radius: var(--radius-sm);
+      font-size: 13px; cursor: pointer;
+    }
+    .btn-logout:hover { background: #334155; color: white; }
+    .admin-container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    .admin-section { margin-bottom: 32px; }
+    .admin-section-title {
+      font-size: 13px; font-weight: 700; letter-spacing: .08em;
+      color: #64748b; text-transform: uppercase; margin-bottom: 16px;
+    }
+    .admin-card {
+      background: #1e293b; border-radius: var(--radius);
+      border: 1px solid #334155; padding: 24px;
+    }
+    .admin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .admin-field label {
+      display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+      color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .admin-field input, .admin-field select {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: var(--radius-sm); color: white; font-size: 14px; outline: none;
+      transition: border-color .15s;
+    }
+    .admin-field input:focus, .admin-field select:focus { border-color: var(--blue); }
+    .admin-field select option { background: #1e293b; }
+    .btn-update {
+      width: 100%; padding: 12px; background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 20px; transition: background .15s;
+    }
+    .btn-update:hover { background: #1d4ed8; }
+    .update-success {
+      margin-top: 12px; padding: 10px 14px;
+      background: #064e3b; border: 1px solid #065f46; border-radius: var(--radius-sm);
+      color: #6ee7b7; font-size: 14px; display: none;
+    }
+    .admin-status-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .admin-stat-pill {
+      background: #0f172a; border: 1px solid #334155; border-radius: var(--radius-sm);
+      padding: 14px 20px; min-width: 160px;
+    }
+    .admin-stat-pill .pill-label { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+    .admin-stat-pill .pill-val { font-size: 22px; font-weight: 700; color: white; }
+    .admin-log {
+      background: #0f172a; border: 1px solid #334155; border-radius: var(--radius-sm);
+      padding: 14px; max-height: 160px; overflow-y: auto; font-size: 13px; color: #94a3b8;
+      font-family: 'Courier New', monospace;
+    }
+    .log-entry { padding: 3px 0; }
+    .log-entry .log-time { color: #475569; margin-right: 8px; }
+    .log-entry .log-msg { color: #6ee7b7; }
+
+    /* ── ADMIN LOGIN ── */
+    .admin-login {
+      min-height: 100vh; background: #0f172a;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: var(--radius);
+      padding: 40px; width: 380px;
+    }
+    .login-card .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+    .login-card h2 { font-size: 22px; font-weight: 700; color: white; margin-bottom: 6px; }
+    .login-card p { font-size: 14px; color: #64748b; margin-bottom: 28px; }
+    .login-field label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    .login-field input {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: var(--radius-sm); color: white; font-size: 14px;
+      outline: none; margin-bottom: 14px; transition: border-color .15s;
+    }
+    .login-field input:focus { border-color: var(--blue); }
+    .btn-login {
+      width: 100%; padding: 12px; background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 6px;
+    }
+    .login-error {
+      color: #f87171; font-size: 13px; margin-top: 10px; display: none;
+    }
+
+    /* ── PRESENTATION MODE BANNER ── */
+    .pmode-banner {
+      background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+      color: white; text-align: center; padding: 8px 16px;
+      font-size: 13px; font-weight: 600; letter-spacing: .04em;
+      display: none;
+    }
+    .pmode-banner.show { display: block; }
+    .pmode-banner span { opacity: .8; font-weight: 400; margin-left: 8px; }
+
+    /* WebSocket indicator */
+    .ws-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+      display: inline-block; margin-right: 6px; animation: pulse 2s infinite;
+    }
+    .ws-dot.disconnected { background: #ef4444; animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: .4; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .home-body { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr; }
+      .popular-cities { grid-template-columns: repeat(3,1fr); }
+      .calib-grid { grid-template-columns: 1fr; }
+      .admin-form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PRESENTATION MODE BANNER -->
+<div class="pmode-banner" id="pmodeBanner">
+  🎯 PRESENTATION MODE ACTIVE
+  <span>Live data from admin panel · Sensor predictions bypassed</span>
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="mainNavbar" style="display:none;">
+  <button class="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <a href="#" class="navbar-brand" onclick="showPage('home'); return false;">
+    <div class="brand-icon">Q</div>
+    <span class="brand-name">QueueAI</span>
+  </a>
+  <div class="nav-links">
+    <a href="#" class="nav-link" onclick="showPage('home'); return false;">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Home
+    </a>
+    <a href="#" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4m0-4h.01"/></svg>
+      About
+    </a>
+    <a href="#" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </a>
+  </div>
+  <div class="navbar-right">
+    <button class="city-btn" onclick="openCityModal()">
+      <span class="city-label">City</span>
+      <span class="city-val" id="navCityName">Bangalore</span>
+    </button>
+    <div class="search-bar">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35"/></svg>
+      Search location
+    </div>
+    <div class="avatar">M</div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- HOME PAGE -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page active" id="page-home">
+  <div class="home-container">
+    <div class="city-overview-card">
+      <div>
+        <div class="eyebrow">City Overview</div>
+        <h1 id="cityTitle">Places in Bangalore</h1>
+        <p id="citySubtitle">Browse available smart queue locations in Bangalore.</p>
+      </div>
+      <div class="places-count" id="placesCount">3 places</div>
+    </div>
+
+    <div class="home-body">
+      <div class="places-section">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">Places</div>
+            <h2>Available places</h2>
+          </div>
+          <button class="filter-select">
+            Filter: All
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
+
+        <div id="placesList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <div class="context-sidebar">
+        <div class="context-card" id="contextCard" style="display:none;">
+          <div class="eyebrow">Context</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--blue);text-transform:uppercase;margin-bottom:6px;">Selected Place</div>
+          <div class="context-place-name" id="ctxName">–</div>
+          <div class="context-place-type" id="ctxType">–</div>
+          <div class="context-queues-label">Available Queues:</div>
+          <div id="ctxQueues"></div>
+        </div>
+        <div class="context-card" id="contextEmpty" style="color:var(--text-muted);font-size:14px;">
+          Select a place to see its queues.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- QUEUE DETAIL PAGE -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page" id="page-queue">
+  <div class="queue-container">
+    <div class="queue-header-card">
+      <div class="eyebrow">Queue</div>
+      <h1 id="queueTitle">–</h1>
+      <p id="queueSubtitle">–</p>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Crowd</div>
+        <div class="stat-icon c">C</div>
+        <div class="stat-value" id="statCrowd">–</div>
+        <div class="stat-sub" id="statCrowdSub">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Wait time</div>
+        <div class="stat-icon w">W</div>
+        <div class="stat-value" id="statWait">–</div>
+        <div class="stat-sub" id="statWaitSub">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Crowd level</div>
+        <div class="stat-icon l">L</div>
+        <div class="stat-value crowd-level-low" id="statLevel">–</div>
+        <div class="stat-sub">Live level</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="eyebrow">History</div>
+      <h2>Queue trend</h2>
+      <div class="chart-wrap">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="calib-card">
+      <div class="calib-header">
+        <svg width="20" height="20" fill="none" stroke="var(--blue)" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        <h2>Sensor Calibration</h2>
+      </div>
+      <p class="calib-desc">Passive WiFi sniffing estimates crowd size based on detected wireless probe requests. MAC address randomization causes variance. To calibrate, enter the exact number of people currently standing in the queue and click Calibrate.</p>
+      <div class="calib-grid">
+        <div class="calib-fields">
+          <label>Actual headcount in queue</label>
+          <input type="number" placeholder="e.g. 8" id="calibCount" />
+          <button class="btn-calibrate" onclick="applyCalibration()">Calibrate</button>
+        </div>
+        <div class="calib-info-table">
+          <div class="calib-info-row">
+            <span class="key">Active Zone ID</span>
+            <span class="val">entrance-1</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Calibration Factor</span>
+            <span class="val" id="calibFactor">1</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Last Calibrated</span>
+            <span class="val" id="calibTime">Never</span>
+          </div>
+          <div class="calib-info-row">
+            <span class="key">Raw Device Count</span>
+            <span class="val" id="calibRaw">–</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- CITY MODAL -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="cityModal" onclick="closeCityModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-body" style="position:relative;">
+      <button class="modal-close" onclick="closeCityModal()">✕</button>
+
+      <div class="modal-search" style="position:relative;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search for your city..." oninput="filterCities(this.value)" />
+      </div>
+
+      <div class="detect-location">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>
+        Detect my location
+      </div>
+
+      <div class="city-section-label">Popular Cities</div>
+      <div class="popular-cities" id="popularCitiesGrid">
+        <!-- rendered by JS -->
+      </div>
+
+      <div class="city-section-label">Other Cities</div>
+      <div class="other-cities" id="otherCitiesGrid">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ADMIN LOGIN -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="admin-login" id="adminLogin" style="display:none;">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-icon">Q</div>
+      <span style="font-size:18px;font-weight:700;color:white;">QueueAI</span>
+      <span style="background:#dc2626;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;">ADMIN</span>
+    </div>
+    <h2>Admin Panel</h2>
+    <p>Sign in to manage queue data and presentation mode.</p>
+    <div class="login-field">
+      <label>USERNAME</label>
+      <input type="text" id="loginUser" placeholder="admin" />
+    </div>
+    <div class="login-field">
+      <label>PASSWORD</label>
+      <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn-login" onclick="doLogin()">Sign in</button>
+    <div class="login-error" id="loginError">Invalid credentials. Try admin / admin123</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ADMIN DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="admin-overlay" id="adminDashboard" style="display:none;">
+  <nav class="admin-nav">
+    <div class="admin-nav-brand">
+      <div class="brand-icon">Q</div>
+      <span>QueueAI</span>
+      <span class="admin-tag">ADMIN</span>
+    </div>
+    <div class="admin-nav-right">
+      <div class="pmode-toggle">
+        <span><span class="ws-dot" id="wsDot"></span>Live</span>
+        <span style="margin-left:16px;">Presentation Mode</span>
+        <div class="toggle-switch" id="pmodeToggle" onclick="togglePresentationMode()"></div>
+        <span id="pmodeLabel" style="color:#94a3b8;">OFF</span>
+      </div>
+      <button class="btn-logout" onclick="adminLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="admin-container">
+    <div class="admin-section">
+      <div class="admin-section-title">Live Status</div>
+      <div class="admin-status-row" id="adminLiveStatus">
+        <div class="admin-stat-pill">
+          <div class="pill-label">Current Crowd</div>
+          <div class="pill-val" id="adminLiveCrowd">–</div>
+        </div>
+        <div class="admin-stat-pill">
+          <div class="pill-label">Wait Time</div>
+          <div class="pill-val" id="adminLiveWait">–</div>
+        </div>
+        <div class="admin-stat-pill">
+          <div class="pill-label">Crowd Level</div>
+          <div class="pill-val" id="adminLiveLevel">–</div>
+        </div>
+        <div class="admin-stat-pill">
+          <div class="pill-label">Last Update</div>
+          <div class="pill-val" id="adminLastUpdate" style="font-size:14px;">–</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-title">Manual Update — Crowd Data</div>
+      <div class="admin-card">
+        <div class="admin-form-grid">
+          <div class="admin-field">
+            <label>City</label>
+            <input type="text" id="adminCity" value="Bangalore" />
+          </div>
+          <div class="admin-field">
+            <label>Place</label>
+            <input type="text" id="adminPlace" value="Cauvery Hospital, Halasuru" />
+          </div>
+          <div class="admin-field">
+            <label>Queue / Block</label>
+            <input type="text" id="adminBlock" value="OP Desk" />
+          </div>
+          <div class="admin-field">
+            <label>Crowd Count</label>
+            <input type="number" id="adminCrowd" placeholder="e.g. 8" min="0" />
+          </div>
+          <div class="admin-field">
+            <label>Wait Time (minutes)</label>
+            <input type="number" id="adminWait" placeholder="e.g. 5" min="0" step="0.5" />
+          </div>
+          <div class="admin-field">
+            <label>Crowd Level</label>
+            <select id="adminLevel">
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-update" onclick="sendManualUpdate()">Push Update to Dashboard</button>
+        <div class="update-success" id="updateSuccess">✓ Dashboard updated successfully</div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-title">Update Log</div>
+      <div class="admin-card" style="padding:16px;">
+        <div class="admin-log" id="adminLog">
+          <div class="log-entry"><span class="log-time">--:--:--</span><span class="log-msg">Admin panel ready. Waiting for updates...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA STORE
+// ═══════════════════════════════════════════════════════════════════════════
+const PLACES = [
+  {
+    id: 'orion',
+    name: 'Orion Mall, Yeshwanthpur',
+    type: 'Mall',
+    distance: '1.2 km',
+    available: false,
+    queues: [
+      { name: 'Food Court', wait: null, available: false },
+      { name: 'Parking', wait: null, available: false },
+      { name: 'Customer Service', wait: null, available: false },
+    ]
+  },
+  {
+    id: 'cauvery',
+    name: 'Cauvery Hospital, Halasuru',
+    type: 'Hospital',
+    distance: '2.1 km',
+    available: true,
+    queues: [
+      { name: 'OP Desk', wait: '< 1 min', available: true },
+      { name: 'Lab', wait: null, available: false },
+      { name: 'Pharmacy', wait: null, available: false },
+    ]
+  },
+  {
+    id: 'hdfc',
+    name: 'HDFC Bank, Mahalakshmi layout',
+    type: 'Bank',
+    distance: '3.5 km',
+    available: false,
+    queues: [
+      { name: 'Teller', wait: null, available: false },
+      { name: 'Loan Counter', wait: null, available: false },
+      { name: 'NRI Services', wait: null, available: false },
+    ]
+  },
+];
+
+const POPULAR_CITIES = ['Bengaluru','Mysuru (Mysore)','Mumbai','Delhi-NCR','Hyderabad','Chandigarh','Ahmedabad','Pune','Chennai','Kolkata','Kochi'];
+const OTHER_CITIES = ['Aalo','Abohar','Abu Road','Achampet','Adilabad','Agartala','Agra','Ajmer','Akola','Aligarh','Allahabad','Amravati','Amritsar','Anand','Anantapur','Aurangabad'];
+
+const CITY_ICONS = {
+  building: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M9 21V9l6-6 6 6v12M9 21H3M21 21h-6M9 12h6"/></svg>`,
+  dome: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3C8 3 5 6 5 10h14c0-4-3-7-7-7zM5 10v2h14v-2M5 12v8h14v-8"/></svg>`,
+  arch: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V10a7 7 0 0114 0v11M9 21V14a3 3 0 016 0v7"/></svg>`,
+};
+
+let state = {
+  city: 'Bangalore',
+  selectedPlace: null,
+  selectedQueue: null,
+  presentationMode: false,
+  adminLoggedIn: false,
+  // Live data
+  crowd: 1,
+  wait: '< 1',
+  level: 'LOW',
+  chartData: [],
+  calibFactor: 1,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHART
+// ═══════════════════════════════════════════════════════════════════════════
+let trendChart = null;
+
+function initChart() {
+  const ctx = document.getElementById('trendChart');
+  if (trendChart) { trendChart.destroy(); }
+
+  // Seed with demo historical data
+  const now = Date.now();
+  const seedData = [
+    {t: now - 60*55*1000, c: 4, w: 1.8},
+    {t: now - 60*50*1000, c: 4, w: 1.8},
+    {t: now - 60*48*1000, c: 2, w: 0.8},
+    {t: now - 60*45*1000, c: 0, w: 0},
+    {t: now - 60*44*1000, c: 6, w: 2.5},
+    {t: now - 60*42*1000, c: 6, w: 2.5},
+    {t: now - 60*40*1000, c: 5, w: 2.2},
+    {t: now - 60*38*1000, c: 2, w: 0.8},
+    {t: now - 60*36*1000, c: 2, w: 0.8},
+    {t: now - 60*34*1000, c: 0, w: 0},
+    {t: now - 60*32*1000, c: 2, w: 0.8},
+    {t: now - 60*30*1000, c: 2, w: 0.8},
+    {t: now - 60*28*1000, c: 3, w: 1.2},
+    {t: now - 60*26*1000, c: 3, w: 1.2},
+    {t: now - 60*24*1000, c: 2, w: 0.8},
+    {t: now - 60*20*1000, c: 11, w: 5},
+    {t: now - 60*18*1000, c: 2, w: 0.8},
+    {t: now - 60*16*1000, c: 1, w: 0.4},
+    {t: now - 60*14*1000, c: 3, w: 1.2},
+    {t: now - 60*12*1000, c: 3, w: 1.2},
+    {t: now - 60*10*1000, c: 1, w: 0.4},
+    {t: now - 60*8*1000,  c: 1, w: 0.4},
+    {t: now - 60*6*1000,  c: 1, w: 0.4},
+    {t: now - 60*4*1000,  c: 1, w: 0.4},
+    {t: now - 60*2*1000,  c: 1, w: 0.4},
+  ];
+  state.chartData = seedData;
+
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Crowd Count',
+          data: seedData.map(d => ({x: d.t, y: d.c})),
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Waiting Time',
+          data: seedData.map(d => ({x: d.t, y: d.w})),
+          borderColor: '#d97706',
+          backgroundColor: 'rgba(217,119,6,.08)',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'center',
+          labels: { usePointStyle: true, pointStyle: 'rect', font: { size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            title: ctx => {
+              const d = new Date(ctx[0].parsed.x);
+              return d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+            },
+            label: ctx => {
+              if (ctx.datasetIndex === 0) return `Crowd Count: ${ctx.parsed.y}`;
+              return `Waiting Time (min): ${ctx.parsed.y}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: {
+            maxTicksLimit: 10,
+            font: { size: 10 },
+            color: '#94a3b8',
+            callback: val => {
+              const d = new Date(val);
+              return d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
+            }
+          },
+          grid: { color: '#f1f5f9' }
+        },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'Devices (People)', font: { size: 11 }, color: '#64748b' },
+          ticks: { stepSize: 2, font: { size: 11 }, color: '#94a3b8' },
+          grid: { color: '#f1f5f9' },
+          min: 0, max: 12
+        },
+        y1: {
+          position: 'right',
+          title: { display: true, text: 'Wait Time (Minutes)', font: { size: 11 }, color: '#64748b' },
+          ticks: { stepSize: 0.5, font: { size: 11 }, color: '#94a3b8' },
+          grid: { display: false },
+          min: 0, max: 5
+        }
+      }
+    }
+  });
+}
+
+function addChartPoint(crowd, wait) {
+  if (!trendChart) return;
+  const ts = Date.now();
+  trendChart.data.datasets[0].data.push({x: ts, y: crowd});
+  trendChart.data.datasets[1].data.push({x: ts, y: parseFloat(wait) || 0});
+  // Keep last 60 points
+  if (trendChart.data.datasets[0].data.length > 60) {
+    trendChart.data.datasets[0].data.shift();
+    trendChart.data.datasets[1].data.shift();
+  }
+  trendChart.update('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PAGE ROUTING
+// ═══════════════════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + name);
+  if (target) target.classList.add('active');
+  if (name === 'queue') {
+    setTimeout(initChart, 50);
+    startPolling();
+  }
+}
+
+function showMainUI() {
+  document.getElementById('mainNavbar').style.display = 'flex';
+  document.getElementById('page-home').style.display = '';
+  renderPlaces();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLACES RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+function renderPlaces() {
+  const list = document.getElementById('placesList');
+  list.innerHTML = PLACES.map(p => `
+    <div class="place-card ${state.selectedPlace === p.id ? 'selected' : ''}" onclick="selectPlace('${p.id}')">
+      <div>
+        <div class="place-card-name">${p.name}</div>
+        <div class="place-card-meta">
+          <span>${p.type}</span>
+          <span>${p.distance}</span>
+          <span>${p.queues.length} queues</span>
+        </div>
+      </div>
+      <span class="status-badge ${p.available ? 'available' : 'not-available'}">
+        ${p.available ? 'Available' : 'Not Available'}
+      </span>
+    </div>
+  `).join('');
+}
+
+function selectPlace(id) {
+  state.selectedPlace = id;
+  renderPlaces();
+  const place = PLACES.find(p => p.id === id);
+  if (!place) return;
+  document.getElementById('contextCard').style.display = 'block';
+  document.getElementById('contextEmpty').style.display = 'none';
+  document.getElementById('ctxName').textContent = place.name;
+  document.getElementById('ctxType').textContent = place.type;
+  document.getElementById('ctxQueues').innerHTML = place.queues.map(q => `
+    <div class="queue-row" onclick="openQueue('${id}','${q.name}')">
+      <span class="queue-row-name">${q.name}</span>
+      ${q.available
+        ? `<span class="queue-wait-badge">${q.wait} wait</span>`
+        : `<span class="queue-offline">Offline</span>`}
+    </div>
+  `).join('');
+}
+
+function openQueue(placeId, queueName) {
+  const place = PLACES.find(p => p.id === placeId);
+  if (!place) return;
+  state.selectedQueue = queueName;
+  document.getElementById('queueTitle').textContent = `${place.name} - ${queueName}`;
+  document.getElementById('queueSubtitle').textContent = place.name;
+  document.getElementById('statCrowdSub').textContent = place.name;
+  document.getElementById('statWaitSub').textContent = queueName;
+  updateStatsDisplay(state.crowd, state.wait, state.level);
+  showPage('queue');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATS DISPLAY
+// ═══════════════════════════════════════════════════════════════════════════
+function updateStatsDisplay(crowd, wait, level) {
+  document.getElementById('statCrowd').textContent = crowd;
+  const waitNum = parseFloat(wait);
+  document.getElementById('statWait').textContent = (waitNum < 1) ? '< 1 min' : `${waitNum} min`;
+  const levelEl = document.getElementById('statLevel');
+  levelEl.textContent = level;
+  levelEl.className = 'stat-value';
+  if (level === 'LOW') levelEl.classList.add('crowd-level-low');
+  else if (level === 'MEDIUM') levelEl.classList.add('crowd-level-medium');
+  else levelEl.classList.add('crowd-level-high');
+  document.getElementById('calibRaw').textContent = crowd;
+
+  // Update home context badge too
+  const opQueue = PLACES.find(p => p.id === 'cauvery')?.queues.find(q => q.name === 'OP Desk');
+  if (opQueue) {
+    const waitNum2 = parseFloat(wait);
+    opQueue.wait = (waitNum2 < 1) ? '< 1 min' : `${waitNum2} min`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// POLLING / WEBSOCKET SIMULATION
+// ═══════════════════════════════════════════════════════════════════════════
+let pollInterval = null;
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(() => {
+    // In real deployment, this would be:
+    // fetch('/api/live-queue?location=...').then(r=>r.json()).then(applyLiveData)
+    // For demo, we just update from state
+    applyLiveData({ crowd: state.crowd, wait: state.wait, level: state.level });
+  }, 2000);
+}
+
+function applyLiveData(data) {
+  state.crowd = data.crowd;
+  state.wait = data.wait;
+  state.level = data.level;
+  if (document.getElementById('page-queue').classList.contains('active')) {
+    updateStatsDisplay(data.crowd, data.wait, data.level);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CITY MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+function openCityModal() {
+  document.getElementById('cityModal').classList.add('open');
+  renderCities(POPULAR_CITIES, OTHER_CITIES);
+}
+function closeCityModal(e) {
+  if (!e || e.target === document.getElementById('cityModal'))
+    document.getElementById('cityModal').classList.remove('open');
+}
+function renderCities(popular, others) {
+  const icons = [CITY_ICONS.building, CITY_ICONS.dome, CITY_ICONS.arch, CITY_ICONS.arch, CITY_ICONS.building, CITY_ICONS.dome,
+                 CITY_ICONS.arch, CITY_ICONS.dome, CITY_ICONS.arch, CITY_ICONS.arch, CITY_ICONS.dome];
+  document.getElementById('popularCitiesGrid').innerHTML = popular.map((c,i) => `
+    <div class="city-chip ${state.city === c || (state.city === 'Bangalore' && c === 'Bengaluru') ? 'selected' : ''}" onclick="selectCity('${c}')">
+      <div class="city-chip-icon">${icons[i % icons.length]}</div>
+      <span class="city-chip-name">${c}</span>
+    </div>
+  `).join('');
+  document.getElementById('otherCitiesGrid').innerHTML = others.map(c =>
+    `<div class="other-city" onclick="selectCity('${c}')">${c}</div>`
+  ).join('');
+}
+function filterCities(q) {
+  const filtered = POPULAR_CITIES.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+  const filteredOther = OTHER_CITIES.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+  renderCities(filtered, filteredOther);
+}
+function selectCity(name) {
+  state.city = name;
+  document.getElementById('navCityName').textContent = name;
+  document.getElementById('cityTitle').textContent = `Places in ${name}`;
+  document.getElementById('citySubtitle').textContent = `Browse available smart queue locations in ${name}.`;
+  document.getElementById('cityModal').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CALIBRATION
+// ═══════════════════════════════════════════════════════════════════════════
+function applyCalibration() {
+  const actual = parseInt(document.getElementById('calibCount').value);
+  if (!actual || actual < 1) return;
+  const factor = (actual / Math.max(state.crowd, 1)).toFixed(2);
+  state.calibFactor = factor;
+  document.getElementById('calibFactor').textContent = factor;
+  document.getElementById('calibTime').textContent = new Date().toLocaleTimeString('en-IN', {hour12:true});
+  document.getElementById('calibCount').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+function routeToAdmin() {
+  document.getElementById('mainNavbar').style.display = 'none';
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  if (state.adminLoggedIn) {
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'block';
+    startAdminPolling();
+  } else {
+    document.getElementById('adminLogin').style.display = 'flex';
+    document.getElementById('adminDashboard').style.display = 'none';
+  }
+}
+
+function doLogin() {
+  const u = document.getElementById('loginUser').value;
+  const p = document.getElementById('loginPass').value;
+  if (u === 'admin' && p === 'admin123') {
+    state.adminLoggedIn = true;
+    document.getElementById('loginError').style.display = 'none';
+    routeToAdmin();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function adminLogout() {
+  state.adminLoggedIn = false;
+  document.getElementById('adminDashboard').style.display = 'none';
+  document.getElementById('adminLogin').style.display = 'none';
+  document.getElementById('mainNavbar').style.display = 'flex';
+  document.querySelectorAll('.page').forEach(p => p.style.display = '');
+  showPage('home');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — MANUAL UPDATE
+// ═══════════════════════════════════════════════════════════════════════════
+function sendManualUpdate() {
+  const crowd = parseInt(document.getElementById('adminCrowd').value) || 0;
+  const wait  = parseFloat(document.getElementById('adminWait').value) || 0;
+  const level = document.getElementById('adminLevel').value;
+
+  // In real deployment: POST /api/manual-update
+  // For demo: update shared state directly
+  pushUpdate({ crowd, wait, level });
+}
+
+function pushUpdate(data) {
+  state.crowd = data.crowd;
+  state.wait  = data.wait.toString();
+  state.level = data.level;
+
+  // Update main dashboard
+  applyLiveData(data);
+
+  // Add chart point
+  if (trendChart) addChartPoint(data.crowd, data.wait);
+
+  // Update admin live status
+  document.getElementById('adminLiveCrowd').textContent = data.crowd;
+  document.getElementById('adminLiveWait').textContent = `${data.wait} min`;
+  document.getElementById('adminLiveLevel').textContent = data.level;
+  document.getElementById('adminLastUpdate').textContent = new Date().toLocaleTimeString('en-IN', {hour12:true});
+
+  // Show success
+  const suc = document.getElementById('updateSuccess');
+  suc.style.display = 'block';
+  setTimeout(() => suc.style.display = 'none', 3000);
+
+  // Log
+  appendLog(`Update pushed → Crowd: ${data.crowd}, Wait: ${data.wait}min, Level: ${data.level}`);
+
+  // Presentation mode banner
+  if (state.presentationMode) {
+    document.getElementById('pmodeBanner').classList.add('show');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRESENTATION MODE
+// ═══════════════════════════════════════════════════════════════════════════
+function togglePresentationMode() {
+  state.presentationMode = !state.presentationMode;
+  const toggle = document.getElementById('pmodeToggle');
+  const label  = document.getElementById('pmodeLabel');
+  const banner = document.getElementById('pmodeBanner');
+  if (state.presentationMode) {
+    toggle.classList.add('on');
+    label.textContent = 'ON';
+    label.style.color = '#60a5fa';
+    banner.classList.add('show');
+    appendLog('PRESENTATION MODE enabled — sensor predictions bypassed');
+  } else {
+    toggle.classList.remove('on');
+    label.textContent = 'OFF';
+    label.style.color = '#94a3b8';
+    banner.classList.remove('show');
+    appendLog('PRESENTATION MODE disabled — resuming sensor pipeline');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════════════════════════════
+function appendLog(msg) {
+  const log = document.getElementById('adminLog');
+  const time = new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg">${msg}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN POLLING (simulated WebSocket)
+// ═══════════════════════════════════════════════════════════════════════════
+let adminPollInterval = null;
+function startAdminPolling() {
+  document.getElementById('wsDot').classList.remove('disconnected');
+  document.getElementById('adminLiveCrowd').textContent = state.crowd;
+  document.getElementById('adminLiveWait').textContent = `${state.wait} min`;
+  document.getElementById('adminLiveLevel').textContent = state.level;
+  document.getElementById('adminLastUpdate').textContent = '–';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// URL ROUTING
+// ═══════════════════════════════════════════════════════════════════════════
+function handleRoute() {
+  const path = window.location.pathname;
+  if (path === '/admin' || path.includes('admin')) {
+    routeToAdmin();
+  } else {
+    showMainUI();
+    showPage('home');
+    // Check URL params for direct queue link
+    const params = new URLSearchParams(window.location.search);
+    const loc = params.get('location');
+    const block = params.get('block');
+    if (loc && block) {
+      const place = PLACES.find(p => p.name.replace(/ /g,'+') === loc.replace(/ /g,'+') || p.name === loc.replace(/\+/g,' '));
+      if (place) {
+        selectPlace(place.id);
+        openQueue(place.id, block.replace(/\+/g,' '));
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  // For demo, always show main UI (admin route via button)
+  showMainUI();
+  showPage('home');
+  renderCities(POPULAR_CITIES, OTHER_CITIES);
+
+  // Check if URL has /admin
+  if (window.location.hash === '#admin') {
+    routeToAdmin();
+  }
+});
+</script>
+</body>
+</html>

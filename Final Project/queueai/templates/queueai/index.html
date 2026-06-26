@@ -1,0 +1,284 @@
+{% extends 'queueai/base.html' %}
+
+{% block title %}QueueAI - Smart Queue Prediction{% endblock %}
+
+{% block body %}
+<!-- NAVBAR -->
+<nav class="navbar" id="mainNavbar">
+  <button class="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <a href="{% url 'queueai:index' %}" class="navbar-brand">
+    <div class="brand-icon">Q</div>
+    <span class="brand-name">QueueAI</span>
+  </a>
+  <div class="nav-links">
+    <a href="{% url 'queueai:index' %}" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Home
+    </a>
+    <a href="#" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4m0-4h.01"/></svg>
+      About
+    </a>
+    <a href="{% url 'queueai:admin_dashboard' %}" class="nav-link">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      Admin Panel
+    </a>
+  </div>
+  <div class="navbar-right">
+    <button class="city-btn" onclick="openCityModal()">
+      <span class="city-label">City</span>
+      <span class="city-val" id="navCityName">Mysore</span>
+    </button>
+    <div class="search-bar">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35"/></svg>
+      Search location
+    </div>
+    <div class="avatar-container">
+      {% if request.user.is_authenticated or request.session.admin_logged_in %}
+      <div class="avatar" onclick="toggleUserDropdown(event)">A</div>
+      <div class="user-dropdown" id="userDropdownMenu">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar">A</div>
+          <div class="dropdown-info">
+            <div class="dropdown-name">Admin User</div>
+            <div class="dropdown-role">Administrator</div>
+          </div>
+        </div>
+        <div class="dropdown-body">
+          <div class="dropdown-detail"><strong>Email:</strong> <span>admin@queueai.com</span></div>
+          <div class="dropdown-detail"><strong>Role:</strong> <span>Admin</span></div>
+        </div>
+        <div class="dropdown-footer">
+          <button class="btn-view-details" onclick="openUserDetailsModal()">View User Details</button>
+        </div>
+      </div>
+      {% else %}
+      <div class="avatar" onclick="toggleUserDropdown(event)">M</div>
+      <div class="user-dropdown" id="userDropdownMenu">
+        <div class="dropdown-header">
+          <div class="dropdown-avatar">M</div>
+          <div class="dropdown-info">
+            <div class="dropdown-name">Manoj Kumar</div>
+            <div class="dropdown-role">Visitor</div>
+          </div>
+        </div>
+        <div class="dropdown-body">
+          <div class="dropdown-detail"><strong>Email:</strong> <span>manoj.kumar@gmail.com</span></div>
+          <div class="dropdown-detail"><strong>Role:</strong> <span>Visitor</span></div>
+        </div>
+        <div class="dropdown-footer">
+          <button class="btn-view-details" onclick="openUserDetailsModal()">View User Details</button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div class="home-container">
+    <div class="city-overview-card">
+      <div>
+        <div class="eyebrow">City Overview</div>
+        <h1 id="cityTitle">Places in Mysore</h1>
+        <p id="citySubtitle">Browse available smart queue locations in Mysore.</p>
+      </div>
+      <div class="places-count" id="placesCount">{{ places.count }} places</div>
+    </div>
+
+    <div class="home-body">
+      <div class="places-section">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">Places</div>
+            <h2>Available places</h2>
+          </div>
+          <button class="filter-select">
+            Filter: All
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
+
+        <div id="placesList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <div class="context-sidebar">
+        <div class="context-card" id="contextCard" style="display:none;">
+          <div class="eyebrow">Context</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--blue);text-transform:uppercase;margin-bottom:6px;">Selected Place</div>
+          <div class="context-place-name" id="ctxName">–</div>
+          <div class="context-place-type" id="ctxType">–</div>
+          <div class="context-queues-label">Available Queues:</div>
+          <div id="ctxQueues"></div>
+        </div>
+        <div class="context-card" id="contextEmpty" style="color:var(--text-muted);font-size:14px;">
+          Select a place to see its queues.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CITY MODAL -->
+<div class="modal-overlay" id="cityModal" onclick="closeCityModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-body" style="position:relative;">
+      <button class="modal-close" onclick="closeCityModal()">✕</button>
+
+      <div class="modal-search" style="position:relative;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search for your city..." oninput="filterCities(this.value)" />
+      </div>
+
+      <div class="detect-location">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>
+        Detect my location
+      </div>
+
+      <div class="city-section-label">Popular Cities</div>
+      <div class="popular-cities" id="popularCitiesGrid">
+        <!-- rendered by JS -->
+      </div>
+
+      <div class="city-section-label">Other Cities</div>
+      <div class="other-cities" id="otherCitiesGrid">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA STORE ──
+const PLACES = [
+  {% for place in places %}
+  {
+    id: '{{ place.id }}',
+    name: '{{ place.name|escapejs }}',
+    type: '{{ place.get_place_type_display|escapejs }}',
+    distance: '{{ forloop.counter }} km',
+    available: {{ place.is_active|yesno:"true,false" }},
+    queues: [
+      {% for block in place.blocks.all %}
+      {
+        name: '{{ block.name|escapejs }}',
+        wait: '{{ block.snapshots.first.wait_time_min|default:"0.0" }} min',
+        available: {{ block.is_active|yesno:"true,false" }}
+      },
+      {% endfor %}
+    ]
+  },
+  {% endfor %}
+];
+
+const POPULAR_CITIES = ['Bengaluru','Mysuru (Mysore)','Mumbai','Delhi-NCR','Hyderabad','Chandigarh','Ahmedabad','Pune','Chennai','Kolkata','Kochi'];
+const OTHER_CITIES = ['Aalo','Abohar','Abu Road','Achampet','Adilabad','Agartala','Agra','Ajmer','Akola','Aligarh','Allahabad','Amravati','Amritsar','Anand','Anantapur','Aurangabad'];
+
+const CITY_ICONS = {
+  building: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M9 21V9l6-6 6 6v12M9 21H3M21 21h-6M9 12h6"/></svg>`,
+  dome: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3C8 3 5 6 5 10h14c0-4-3-7-7-7zM5 10v2h14v-2M5 12v8h14v-8"/></svg>`,
+  arch: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V10a7 7 0 0114 0v11M9 21V14a3 3 0 016 0v7"/></svg>`,
+};
+
+let state = {
+  city: 'Mysore',
+  selectedPlace: null,
+};
+
+function renderPlaces() {
+  const list = document.getElementById('placesList');
+  if (PLACES.length === 0) {
+    list.innerHTML = `<div style="padding: 20px; color: var(--text-muted); text-align: center;">No active places found in the database.</div>`;
+    return;
+  }
+  list.innerHTML = PLACES.map(p => `
+    <div class="place-card ${state.selectedPlace === p.id ? 'selected' : ''}" onclick="selectPlace('${p.id}')">
+      <div>
+        <div class="place-card-name">${p.name}</div>
+        <div class="place-card-meta">
+          <span>${p.type}</span>
+          <span>${p.distance}</span>
+          <span>${p.queues.length} queues</span>
+        </div>
+      </div>
+      <span class="status-badge ${p.available ? 'available' : 'not-available'}">
+        ${p.available ? 'Available' : 'Not Available'}
+      </span>
+    </div>
+  `).join('');
+}
+
+function selectPlace(id) {
+  state.selectedPlace = id;
+  renderPlaces();
+  const place = PLACES.find(p => p.id === id);
+  if (!place) return;
+  document.getElementById('contextCard').style.display = 'block';
+  document.getElementById('contextEmpty').style.display = 'none';
+  document.getElementById('ctxName').textContent = place.name;
+  document.getElementById('ctxType').textContent = place.type;
+  document.getElementById('ctxQueues').innerHTML = place.queues.map(q => `
+    <div class="queue-row" onclick="openQueue('${place.name}','${q.name}')">
+      <span class="queue-row-name">${q.name}</span>
+      ${q.available
+        ? `<span class="queue-wait-badge">${q.wait} wait</span>`
+        : `<span class="queue-offline">Offline</span>`}
+    </div>
+  `).join('');
+}
+
+function openQueue(placeName, queueName) {
+  window.location.href = `{% url 'queueai:queue_detail' %}?location=${encodeURIComponent(placeName)}&block=${encodeURIComponent(queueName)}`;
+}
+
+// ── CITY MODAL ──
+function openCityModal() {
+  document.getElementById('cityModal').classList.add('open');
+  renderCities(POPULAR_CITIES, OTHER_CITIES);
+}
+function closeCityModal(e) {
+  if (!e || e.target === document.getElementById('cityModal'))
+    document.getElementById('cityModal').classList.remove('open');
+}
+function renderCities(popular, others) {
+  const icons = [CITY_ICONS.building, CITY_ICONS.dome, CITY_ICONS.arch, CITY_ICONS.arch, CITY_ICONS.building, CITY_ICONS.dome,
+                 CITY_ICONS.arch, CITY_ICONS.dome, CITY_ICONS.arch, CITY_ICONS.arch, CITY_ICONS.dome];
+  document.getElementById('popularCitiesGrid').innerHTML = popular.map((c,i) => `
+    <div class="city-chip ${state.city === c || (state.city === 'Mysore' && c === 'Mysuru (Mysore)') ? 'selected' : ''}" onclick="selectCity('${c}')">
+      <div class="city-chip-icon">${icons[i % icons.length]}</div>
+      <span class="city-chip-name">${c}</span>
+    </div>
+  `).join('');
+  document.getElementById('otherCitiesGrid').innerHTML = others.map(c =>
+    `<div class="other-city" onclick="selectCity('${c}')">${c}</div>`
+  ).join('');
+}
+function filterCities(q) {
+  const filtered = POPULAR_CITIES.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+  const filteredOther = OTHER_CITIES.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+  renderCities(filtered, filteredOther);
+}
+function selectCity(name) {
+  if (name === 'Mysuru (Mysore)' || name === 'Mysore') {
+    state.city = name;
+    document.getElementById('navCityName').textContent = name;
+    document.getElementById('cityTitle').textContent = `Places in ${name}`;
+    document.getElementById('citySubtitle').textContent = `Browse available smart queue locations in ${name}.`;
+    document.getElementById('cityModal').classList.remove('open');
+    renderCities(POPULAR_CITIES, OTHER_CITIES);
+  } else {
+    alert("the service will come soon");
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderPlaces();
+  renderCities(POPULAR_CITIES, OTHER_CITIES);
+});
+</script>
+{% endblock %}

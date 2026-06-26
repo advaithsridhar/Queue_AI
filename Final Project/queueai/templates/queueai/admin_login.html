@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QueueAI — Admin Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #2563eb;
+      --border: #334155;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; }
+
+    .login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 44px 40px; width: 400px;
+    }
+    .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .brand-icon {
+      width: 36px; height: 36px; background: var(--blue); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: white;
+    }
+    .brand-name { font-size: 20px; font-weight: 700; }
+    .admin-badge {
+      background: #dc2626; color: white; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: .06em;
+    }
+    .login-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .login-sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .field input {
+      width: 100%; padding: 11px 14px;
+      background: var(--bg-dark); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 14px; outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--blue); }
+    .btn-primary {
+      width: 100%; padding: 13px; background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 8px; transition: background .15s;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .error-msg { color: #f87171; font-size: 13px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-icon">Q</div>
+      <span class="brand-name">QueueAI</span>
+      <span class="admin-badge">ADMIN</span>
+    </div>
+    <div class="login-title">Admin Panel</div>
+    <p class="login-sub">Sign in to control crowd data and Presentation Mode.</p>
+    
+    <form method="POST" action="{% url 'queueai:admin_login' %}">
+      {% csrf_token %}
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="admin" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn-primary">Sign In →</button>
+      {% if error %}
+        <div class="error-msg">{{ error }}</div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+</body>
+</html>
